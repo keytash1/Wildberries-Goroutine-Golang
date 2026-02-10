@@ -17,21 +17,23 @@ func worker(id int, jobs <-chan int, wg *sync.WaitGroup) {
 func main() {
 	number := flag.Int("workers", 3, "number of workers")
 	flag.Parse()
+
 	var wg sync.WaitGroup
 	jobs := make(chan int, 10)
+
 	for i := 0; i < *number; i++ {
 		wg.Add(1)
 		go worker(i, jobs, &wg)
 	}
+
 	counter := 0
-	for {
+	for i := 0; i < 100000; i++ {
 		jobs <- counter
 		counter++
 		time.Sleep(100 * time.Millisecond)
-		if counter == 100 {
-			break
-		}
 	}
 	close(jobs)
 	wg.Wait()
 }
+
+//done
