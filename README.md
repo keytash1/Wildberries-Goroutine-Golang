@@ -1,1 +1,1 @@
-# wbcourse
+Golang course from wildberries
