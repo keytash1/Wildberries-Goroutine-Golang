@@ -1,0 +1,131 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: order-postgres
+    environment:
+      POSTGRES_DB: orders
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d 
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - order-network
+  redis:
+    image: redis:7-alpine
+    container_name: order-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      #мб убрать
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - order-network
+  kafka:
+    image: apache/kafka:latest
+    container_name: order-kafka
+    ports:
+      - "9092:9092" 
+      - "29092:29092" 
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - order-network
+  order-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    container_name: order-service 
+    ports:
+      - "8081:8081"
+    #УБРАТЬ ОТСЮДА ПЕРЕНЕСТИ В .env godotenv
+    environment:
+      #POSTGRE
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: orders
+      #REDIS
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      REDIS_DB: 0
+      REDIS_TTL: 86400
+      #KAFKA
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC: orders
+      KAFKA_GROUP_ID: order-service
+      KAFKA_CONSUMER_GROUP: order-group
+      #HTTP
+      HTTP_PORT: 8081
+      LOG_LEVEL: debug
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    volumes:
+    #ХЗ
+      - ./migrations:/app/migrations
+      - ./model.json:/app/model.json
+    networks:
+        - order-network
+  producer-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.producer
+    container_name: order-producer-test
+    environment:
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC: orders
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - order-network
+volumes:
+  postgres_data:
+  redis_data:
+  kafka_data:
+
+networks:
+  order-network:
+    driver: bridge

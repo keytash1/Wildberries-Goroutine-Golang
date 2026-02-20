@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Service</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Order Service</h1>
+        
+        <div class="search-box">
+            <input 
+                type="text" 
+                id="orderId" 
+                placeholder="Enter Order UID (e.g. b563feb7b2b84b6test)" 
+                value="b563feb7b2b84b6test"
+            >
+            <button onclick="getOrder()">Get Order</button>
+        </div>
+
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Loading order details...</p>
+        </div>
+
+        <div id="error" class="error hidden"></div>
+
+        <div id="cacheInfo" class="cache-info hidden"></div>
+
+        <div id="orderDetails" class="order-details hidden"></div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
