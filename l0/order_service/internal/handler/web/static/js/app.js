@@ -34,7 +34,7 @@ async function getOrder() {
 }
 
 function displayOrder(order, responseTime) {
-    const fromCache = responseTime < 20; // если меньше 20мс - из кэша
+    const fromCache = responseTime < 20; 
     
     showCacheInfo(fromCache, responseTime);
     
@@ -47,8 +47,8 @@ function showCacheInfo(fromCache, responseTime) {
     const infoDiv = document.getElementById('cacheInfo');
     infoDiv.className = `cache-info ${fromCache ? 'hit' : 'miss'}`;
     infoDiv.innerHTML = fromCache 
-        ? `⚡ CACHE HIT (${responseTime.toFixed(2)} ms)` 
-        : `💾 CACHE MISS (${responseTime.toFixed(2)} ms) - loaded from database`;
+        ? ` CACHE HIT (${responseTime.toFixed(2)} ms)` 
+        : ` CACHE MISS (${responseTime.toFixed(2)} ms) - loaded from database`;
     infoDiv.classList.remove('hidden');
 }
 

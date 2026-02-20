@@ -31,5 +31,9 @@ http://localhost:8081
 
 TODO:
     TESTS
+    
     MOVE INTERFACES
+
     CLEAN
+
+    REMOVE TESTS FROM DOCKER
