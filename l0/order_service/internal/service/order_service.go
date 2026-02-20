@@ -53,13 +53,85 @@ func (s *OrderService) GetOrder(id string) (*domain.Order, error) {
 	return order, nil
 }
 
-func (s *OrderService) SaveOrder(order *domain.Order) error {
-	//valid
+func (s *OrderService) validateOrder(order *domain.Order) error {
 	if order == nil {
-		return ErrInvalidOrder
+		return fmt.Errorf("%w: order is nil", ErrInvalidOrder)
 	}
+
+	// orders table
 	if order.OrderUID == "" {
 		return fmt.Errorf("%w: missing order_uid", ErrInvalidOrder)
+	}
+	if order.TrackNumber == "" {
+		return fmt.Errorf("%w: missing track_number", ErrInvalidOrder)
+	}
+	if order.CustomerID == "" {
+		return fmt.Errorf("%w: missing customer_id", ErrInvalidOrder)
+	}
+	if order.DateCreated.IsZero() {
+		return fmt.Errorf("%w: missing date_created", ErrInvalidOrder)
+	}
+
+	// delivery table
+	if order.Delivery.Name == "" {
+		return fmt.Errorf("%w: missing delivery name", ErrInvalidOrder)
+	}
+	if order.Delivery.Phone == "" {
+		return fmt.Errorf("%w: missing delivery phone", ErrInvalidOrder)
+	}
+	if order.Delivery.City == "" {
+		return fmt.Errorf("%w: missing delivery city", ErrInvalidOrder)
+	}
+	if order.Delivery.Address == "" {
+		return fmt.Errorf("%w: missing delivery address", ErrInvalidOrder)
+	}
+	if order.Delivery.Email == "" {
+		return fmt.Errorf("%w: missing delivery email", ErrInvalidOrder)
+	}
+
+	// payment table
+	if order.Payment.Transaction == "" {
+		return fmt.Errorf("%w: missing payment transaction", ErrInvalidOrder)
+	}
+	if order.Payment.Currency == "" {
+		return fmt.Errorf("%w: missing payment currency", ErrInvalidOrder)
+	}
+	if order.Payment.Provider == "" {
+		return fmt.Errorf("%w: missing payment provider", ErrInvalidOrder)
+	}
+	if order.Payment.Amount <= 0 {
+		return fmt.Errorf("%w: invalid payment amount", ErrInvalidOrder)
+	}
+
+	// items table
+	if len(order.Items) == 0 {
+		return fmt.Errorf("%w: no items in order", ErrInvalidOrder)
+	}
+	for i, item := range order.Items {
+		if item.ChrtID <= 0 {
+			return fmt.Errorf("%w: item %d: invalid chrt_id", ErrInvalidOrder, i)
+		}
+		if item.Price <= 0 {
+			return fmt.Errorf("%w: item %d: invalid price", ErrInvalidOrder, i)
+		}
+		if item.Rid == "" {
+			return fmt.Errorf("%w: item %d: missing rid", ErrInvalidOrder, i)
+		}
+		if item.Name == "" {
+			return fmt.Errorf("%w: item %d: missing name", ErrInvalidOrder, i)
+		}
+		if item.TotalPrice <= 0 {
+			return fmt.Errorf("%w: item %d: invalid total_price", ErrInvalidOrder, i)
+		}
+	}
+
+	return nil
+}
+
+func (s *OrderService) SaveOrder(order *domain.Order) error {
+	if err := s.validateOrder(order); err != nil {
+		log.Printf("Invalid order: %v", err)
+		return err
 	}
 	//save db
 	if err := s.repo.Save(order); err != nil {

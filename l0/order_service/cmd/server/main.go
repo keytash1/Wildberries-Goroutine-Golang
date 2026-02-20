@@ -34,6 +34,7 @@ func main() {
 		log.Fatal("Failed to connect to redis:", err)
 	}
 	log.Println("Connected to Redis")
+	defer redisCache.Close()
 
 	orderService := service.NewOrderService(repo, redisCache)
 

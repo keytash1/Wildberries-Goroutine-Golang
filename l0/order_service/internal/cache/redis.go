@@ -16,7 +16,7 @@ type RedisCache struct {
 	ttl    time.Duration
 }
 
-func NewRedisCache(cfg config.RedisConfig) (OrderCache, error) {
+func NewRedisCache(cfg config.RedisConfig) (*RedisCache, error) {
 	//redis options = pgx dsn
 	client := redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
@@ -75,6 +75,9 @@ func (c *RedisCache) Get(id string) (*domain.Order, error) {
 func (c *RedisCache) Restore(orders []*domain.Order) error {
 	ctx := context.Background()
 	for _, order := range orders {
+		if order == nil {
+			continue
+		}
 		data, err := json.Marshal(order)
 		if err != nil {
 			continue

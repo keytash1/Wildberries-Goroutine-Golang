@@ -50,7 +50,8 @@ CREATE TABLE IF NOT EXISTS items (
     total_price INT NOT NULL,
     nm_id BIGINT,
     brand VARCHAR(255),
-    status INT
+    status INT,
+    UNIQUE(order_uid, chrt_id, nm_id) 
 );
 
 CREATE INDEX idx_items_order_uid ON items(order_uid);

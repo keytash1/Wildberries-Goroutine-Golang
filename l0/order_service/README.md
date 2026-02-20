@@ -19,6 +19,9 @@ http://localhost:8081
 | GET | `/order/:id` | Получить заказ по ID (JSON) |
 | GET | `/health` | Проверка здоровья |
 
+# 4. Запустить юнит-тесты
+go test -v ./...
+
 # Технологии
 - Go 1.24
 - PostgreSQL 15

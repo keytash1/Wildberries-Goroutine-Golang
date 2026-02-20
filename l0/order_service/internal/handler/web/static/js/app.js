@@ -34,21 +34,17 @@ async function getOrder() {
 }
 
 function displayOrder(order, responseTime) {
-    const fromCache = responseTime < 20; 
-    
-    showCacheInfo(fromCache, responseTime);
+    showResponseTime(responseTime);
     
     const detailsDiv = document.getElementById('orderDetails');
     detailsDiv.innerHTML = `<pre>${JSON.stringify(order, null, 2)}</pre>`;
     detailsDiv.classList.remove('hidden');
 }
 
-function showCacheInfo(fromCache, responseTime) {
+function showResponseTime(responseTime) {
     const infoDiv = document.getElementById('cacheInfo');
-    infoDiv.className = `cache-info ${fromCache ? 'hit' : 'miss'}`;
-    infoDiv.innerHTML = fromCache 
-        ? ` CACHE HIT (${responseTime.toFixed(2)} ms)` 
-        : ` CACHE MISS (${responseTime.toFixed(2)} ms) - loaded from database`;
+    infoDiv.className = 'cache-info';
+    infoDiv.innerHTML = `Response time: ${responseTime.toFixed(2)} ms`;
     infoDiv.classList.remove('hidden');
 }
 

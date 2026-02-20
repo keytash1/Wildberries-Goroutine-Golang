@@ -14,10 +14,20 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
+type KafkaReader interface {
+	FetchMessage(ctx context.Context) (kafka.Message, error)
+	CommitMessages(ctx context.Context, msgs ...kafka.Message) error
+	Close() error
+}
+
+type OrderServiceInterface interface {
+	SaveOrder(order *domain.Order) error
+}
+
 // cache like repo, kafkaCons like handler
 type Consumer struct {
-	reader       *kafka.Reader //router
-	orderService *service.OrderService
+	reader       KafkaReader //router
+	orderService OrderServiceInterface
 	stopChan     chan struct{}
 }
 

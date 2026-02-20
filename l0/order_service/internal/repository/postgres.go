@@ -8,11 +8,21 @@ import (
 	"order-service/internal/domain"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+type PgxPool interface {
+	Begin(ctx context.Context) (pgx.Tx, error)
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	Close()
+	Ping(ctx context.Context) error
+}
+
 type PostgresOrderRepo struct {
-	pool *pgxpool.Pool
+	pool PgxPool
 }
 
 // return interface
@@ -26,12 +36,6 @@ func NewPostgresOrderRepo(cfg config.DBConfig) (*PostgresOrderRepo, error) {
 	}
 
 	return &PostgresOrderRepo{pool: pool}, nil
-}
-
-func (r *PostgresOrderRepo) Close() {
-	if r.pool != nil {
-		r.pool.Close()
-	}
 }
 
 func (r *PostgresOrderRepo) Save(order *domain.Order) error {
@@ -48,6 +52,7 @@ func (r *PostgresOrderRepo) Save(order *domain.Order) error {
 			order_uid, track_number, entry, locale, internal_signature,
 			customer_id, delivery_service, shardkey, sm_id, date_created, oof_shard
 		) VALUES  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		 ON CONFLICT (order_uid) DO NOTHING
 	`,
 		order.OrderUID, order.TrackNumber, order.Entry, order.Locale,
 		order.InternalSignature, order.CustomerID, order.DeliveryService,
@@ -62,6 +67,7 @@ func (r *PostgresOrderRepo) Save(order *domain.Order) error {
         INSERT INTO delivery (
             order_uid, name, phone, zip, city, address, region, email
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		 ON CONFLICT (order_uid) DO NOTHING
     `,
 		order.OrderUID, order.Delivery.Name, order.Delivery.Phone,
 		order.Delivery.Zip, order.Delivery.City, order.Delivery.Address,
@@ -77,6 +83,7 @@ func (r *PostgresOrderRepo) Save(order *domain.Order) error {
             order_uid, transaction, request_id, currency, provider, amount,
             payment_dt, bank, delivery_cost, goods_total, custom_fee
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		 ON CONFLICT (order_uid) DO NOTHING
     `,
 		order.OrderUID, order.Payment.Transaction, order.Payment.RequestID,
 		order.Payment.Currency, order.Payment.Provider, order.Payment.Amount,
@@ -94,6 +101,7 @@ func (r *PostgresOrderRepo) Save(order *domain.Order) error {
                 order_uid, chrt_id, track_number, price, rid, name,
                 sale, size, total_price, nm_id, brand, status
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			 ON CONFLICT (order_uid, chrt_id, nm_id) DO NOTHING
         `,
 			order.OrderUID, item.ChrtID, item.TrackNumber, item.Price, item.Rid,
 			item.Name, item.Sale, item.Size, item.TotalPrice, item.NmID,
@@ -216,4 +224,11 @@ func (r *PostgresOrderRepo) GetAll() ([]*domain.Order, error) {
 func (r *PostgresOrderRepo) Ping() error {
 	ctx := context.Background()
 	return r.pool.Ping(ctx)
+}
+
+func (r *PostgresOrderRepo) Close() error {
+	if r.pool != nil {
+		r.pool.Close()
+	}
+	return nil
 }
