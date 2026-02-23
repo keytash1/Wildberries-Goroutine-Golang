@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"order-service/internal/service"
 
@@ -27,14 +28,14 @@ func (h *OrderHandler) GetOrder(c *gin.Context) {
 
 	order, err := h.orderService.GetOrder(id)
 	if err != nil {
-		switch err {
-		case service.ErrOrderNotFound:
-			c.JSON(http.StatusBadRequest, gin.H{"error": "order not found"})
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		if errors.Is(err, service.ErrOrderNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "order not found"})
+			return
 		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
+
 	c.JSON(http.StatusOK, order)
 }
 
