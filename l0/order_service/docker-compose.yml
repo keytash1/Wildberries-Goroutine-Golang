@@ -108,6 +108,7 @@ services:
       - ./model.json:/app/model.json
     networks:
         - order-network
+    #если нужен запуск без продюсера убрать этот контейнер
   producer-test:
     build:
       context: .
