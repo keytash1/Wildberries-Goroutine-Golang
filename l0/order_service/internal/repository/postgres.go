@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 
@@ -33,7 +34,7 @@ func NewPostgresOrderRepo(cfg config.DBConfig) (*PostgresOrderRepo, error) {
 
 	pool, err := pgxpool.New(context.Background(), dsn)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create pool: %w", err)
 	}
 
 	return &PostgresOrderRepo{pool: pool}, nil
@@ -134,7 +135,7 @@ func (r *PostgresOrderRepo) GetByID(id string) (*domain.Order, error) {
 		&order.Shardkey, &order.SmID, &order.DateCreated, &order.OofShard,
 	)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to get order: %w", err)
@@ -149,7 +150,7 @@ func (r *PostgresOrderRepo) GetByID(id string) (*domain.Order, error) {
 		&order.Delivery.City, &order.Delivery.Address, &order.Delivery.Region,
 		&order.Delivery.Email,
 	)
-	if err != nil && err != pgx.ErrNoRows {
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, fmt.Errorf("failed to get delivery: %w", err)
 	}
 
@@ -164,7 +165,7 @@ func (r *PostgresOrderRepo) GetByID(id string) (*domain.Order, error) {
 		&order.Payment.PaymentDt, &order.Payment.Bank, &order.Payment.DeliveryCost,
 		&order.Payment.GoodsTotal, &order.Payment.CustomFee,
 	)
-	if err != nil && err != pgx.ErrNoRows {
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, fmt.Errorf("failed to get payment: %w", err)
 	}
 
@@ -197,25 +198,88 @@ func (r *PostgresOrderRepo) GetByID(id string) (*domain.Order, error) {
 }
 
 // getAll для восстановления кэша
-// ПРОБЛЕМА N+1, ПЕРЕДЕЛАТЬ
 func (r *PostgresOrderRepo) GetAll() ([]*domain.Order, error) {
 	ctx := context.Background()
-	rows, err := r.pool.Query(ctx, "SELECT order_uid FROM orders ORDER BY date_created DESC")
+	//get items
+	rows, err := r.pool.Query(ctx, `
+		SELECT 
+			o.order_uid, o.track_number, o.entry, o.locale, o.internal_signature,
+			o.customer_id, o.delivery_service, o.shardkey, o.sm_id, o.date_created, o.oof_shard,
+			d.name, d.phone, d.zip, d.city, d.address, d.region, d.email,
+			p.transaction, p.request_id, p.currency, p.provider, p.amount,
+			p.payment_dt, p.bank, p.delivery_cost, p.goods_total, p.custom_fee
+		FROM orders o
+		LEFT JOIN delivery d ON o.order_uid = d.order_uid
+		LEFT JOIN payment p ON o.order_uid = p.order_uid
+		ORDER BY o.date_created DESC
+	`)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get order list %w", err)
+		return nil, fmt.Errorf("failed to get orders: %w", err)
 	}
 	defer rows.Close()
 
 	var orders []*domain.Order
+	orderMap := make(map[string]*domain.Order)
+
 	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			continue
+		var (
+			order    domain.Order
+			delivery domain.Delivery
+			payment  domain.Payment
+		)
+
+		err := rows.Scan(
+			&order.OrderUID, &order.TrackNumber, &order.Entry, &order.Locale,
+			&order.InternalSignature, &order.CustomerID, &order.DeliveryService,
+			&order.Shardkey, &order.SmID, &order.DateCreated, &order.OofShard,
+			&delivery.Name, &delivery.Phone, &delivery.Zip, &delivery.City,
+			&delivery.Address, &delivery.Region, &delivery.Email,
+			&payment.Transaction, &payment.RequestID, &payment.Currency,
+			&payment.Provider, &payment.Amount, &payment.PaymentDt, &payment.Bank,
+			&payment.DeliveryCost, &payment.GoodsTotal, &payment.CustomFee,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan order: %w", err)
 		}
-		//плохо
-		order, err := r.GetByID(id)
-		if err == nil && order != nil {
-			orders = append(orders, order)
+
+		if existing, ok := orderMap[order.OrderUID]; ok {
+			order = *existing
+		} else {
+			order.Delivery = delivery
+			order.Payment = payment
+			order.Items = []domain.Item{}
+			orderMap[order.OrderUID] = &order
+			orders = append(orders, &order)
+		}
+	}
+
+	// get items
+	itemRows, err := r.pool.Query(ctx, `
+		SELECT order_uid, chrt_id, track_number, price, rid, name, sale, size,
+		       total_price, nm_id, brand, status
+		FROM items
+		ORDER BY order_uid, id
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get items: %w", err)
+	}
+	defer itemRows.Close()
+
+	for itemRows.Next() {
+		var (
+			orderUID string
+			item     domain.Item
+		)
+		err := itemRows.Scan(
+			&orderUID, &item.ChrtID, &item.TrackNumber, &item.Price, &item.Rid,
+			&item.Name, &item.Sale, &item.Size, &item.TotalPrice,
+			&item.NmID, &item.Brand, &item.Status,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan item: %w", err)
+		}
+		if order, ok := orderMap[orderUID]; ok {
+			order.Items = append(order.Items, item)
 		}
 	}
 
@@ -224,7 +288,10 @@ func (r *PostgresOrderRepo) GetAll() ([]*domain.Order, error) {
 
 func (r *PostgresOrderRepo) Ping() error {
 	ctx := context.Background()
-	return r.pool.Ping(ctx)
+	if err := r.pool.Ping(ctx); err != nil {
+		return fmt.Errorf("failed to ping database: %w", err)
+	}
+	return nil
 }
 
 func (r *PostgresOrderRepo) Close() error {

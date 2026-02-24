@@ -15,20 +15,10 @@ import (
 	"order-service/internal/service"
 )
 
-type KafkaReader interface {
-	FetchMessage(ctx context.Context) (kafka.Message, error)
-	CommitMessages(ctx context.Context, msgs ...kafka.Message) error
-	Close() error
-}
-
-type OrderServiceInterface interface {
-	SaveOrder(order *domain.Order) error
-}
-
 // cache like repo, kafkaCons like handler
 type Consumer struct {
 	reader       KafkaReader //router
-	orderService OrderServiceInterface
+	orderService service.OrderServiceInterface
 	stopChan     chan struct{}
 }
 
@@ -99,5 +89,8 @@ func (c *Consumer) processMessage(msg kafka.Message) error {
 func (c *Consumer) Stop() error {
 	//выходим из цикла в start
 	close(c.stopChan)
-	return c.reader.Close()
+	if err := c.reader.Close(); err != nil {
+		return fmt.Errorf("failed to close reader: %w", err)
+	}
+	return nil
 }

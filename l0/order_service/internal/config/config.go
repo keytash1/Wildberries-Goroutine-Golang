@@ -39,7 +39,7 @@ type HTTPConfig struct {
 	Port string
 }
 
-func Load() (*Config, error) {
+func Load() *Config {
 	return &Config{
 		DB: DBConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
@@ -64,7 +64,7 @@ func Load() (*Config, error) {
 		HTTP: HTTPConfig{
 			Port: getEnv("HTTP_PORT", "8081"),
 		},
-	}, nil
+	}
 }
 
 func getEnv(key, defaultValue string) string {

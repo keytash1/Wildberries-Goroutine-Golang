@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -50,14 +51,17 @@ func (c *RedisCache) Set(id string, order *domain.Order) error {
 		return fmt.Errorf("failed to marshal order: %w", err)
 	}
 
-	return c.client.Set(ctx, "order:"+id, data, c.ttl).Err()
+	if err := c.client.Set(ctx, "order:"+id, data, c.ttl).Err(); err != nil {
+		return fmt.Errorf("failed to set in redis: %w", err)
+	}
+	return nil
 }
 
 func (c *RedisCache) Get(id string) (*domain.Order, error) {
 	ctx := context.Background()
 
 	data, err := c.client.Get(ctx, "order:"+id).Bytes()
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		//cache miss
 		return nil, nil
 	}
