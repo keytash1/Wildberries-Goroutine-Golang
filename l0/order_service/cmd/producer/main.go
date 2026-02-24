@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"time"
 
 	"order-service/internal/config"
@@ -18,7 +18,7 @@ func main() {
 		log.Fatal("Failed to load config:", err)
 	}
 
-	data, err := ioutil.ReadFile("model.json")
+	data, err := os.ReadFile("model.json")
 	if err != nil {
 		log.Fatal("Failed to read model.json:", err)
 	}

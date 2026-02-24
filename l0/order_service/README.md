@@ -103,6 +103,18 @@ ON CONFLICT DO NOTHING для идемпотентности
 | **service** | `GetOrder` (cache hit/miss), `SaveOrder` (валидация), `RestoreCache` | `testify/mock` |
 | **kafka** | `processMessage` (успех, ошибки), `Start`/`Stop` | `testify/mock` |
 
+## Переменные окружения
+
+Скопируйте файл `.env.example` в `.env` и отредактируйте при необходимости:
+```bash
+cp .env.example .env
+```
+Файл .env находится в gitignore:
+```gitignore
+# Environment variables
+.env
+```
+
 TODO:
     Оптимизировать GetAll in repo
     Исправить Graceful Shtd
@@ -115,7 +127,7 @@ TODO:
 1 Тудушки лучше исправлять
 TODO: Оптимизировать GetAll in repo Исправить Graceful Shtd Переместить интерфейсы golint Убрать тестовый продюсер из докера
 
-4 Так как параметры задаются через переменные окружения, то неплохо бы приложить файл example.env
+3 Линтер ругался на .Close(), сделать норм ctrl s visual studio
 
 5 Сигнатуры функции Load() (*Config, error) не соответствует реальности. Зачем возвращать ошибку, если она всегда nil?
 
