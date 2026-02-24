@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"order-service/internal/domain"
-
 	"github.com/segmentio/kafka-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"order-service/internal/domain"
 )
 
 type MockReader struct {

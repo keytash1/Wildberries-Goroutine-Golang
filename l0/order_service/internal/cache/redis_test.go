@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"order-service/internal/config"
-	"order-service/internal/domain"
-
 	"github.com/alicebob/miniredis/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"order-service/internal/config"
+	"order-service/internal/domain"
 )
 
 func TestRedisCache_NewRedisCache_Success(t *testing.T) {

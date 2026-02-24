@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"order-service/internal/config"
-	"order-service/internal/domain"
 	"time"
 
 	"github.com/redis/go-redis/v9"
+
+	"order-service/internal/config"
+	"order-service/internal/domain"
 )
 
 type RedisCache struct {

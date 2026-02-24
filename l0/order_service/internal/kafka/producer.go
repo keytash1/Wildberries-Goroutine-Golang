@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"order-service/internal/domain"
 	"time"
 
 	"github.com/segmentio/kafka-go"
+
+	"order-service/internal/domain"
 )
 
 type Producer struct {

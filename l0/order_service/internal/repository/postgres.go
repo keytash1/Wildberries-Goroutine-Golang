@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"order-service/internal/config"
-	"order-service/internal/domain"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"order-service/internal/config"
+	"order-service/internal/domain"
 )
 
 type PgxPool interface {

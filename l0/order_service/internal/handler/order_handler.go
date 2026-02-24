@@ -3,9 +3,10 @@ package handler
 import (
 	"errors"
 	"net/http"
-	"order-service/internal/service"
 
 	"github.com/gin-gonic/gin"
+
+	"order-service/internal/service"
 )
 
 type OrderHandler struct {

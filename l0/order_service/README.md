@@ -34,53 +34,23 @@ go test -v ./...
 
 
 ## Структура проекта
-order-service/
-├── cmd/ # точки входа
-│ ├── producer/ # тестовый продюсер
-│ │ └── main.go
-│ └── server/ # основной сервис
-│ └── main.go
-├── internal/ # внутренний код
-│ ├── cache/ # работа с Redis
-│ │ ├── order_cache.go # интерфейс кэша
-│ │ ├── redis.go # реализация Redis
-│ │ └── redis_test.go # тесты (miniredis)
-│ ├── config/ # конфигурация
-│ │ └── config.go
-│ ├── domain/ # модели данных
-│ │ └── models.go
-│ ├── handler/ # HTTP обработчики
-│ │ ├── order_handler.go # API /order/:id
-│ │ ├── web_handler.go # веб-интерфейс
-│ │ └── web/ # встроенные файлы
-│ │ ├── static/ # CSS/JS
-│ │ │ ├── css/
-│ │ │ │ └── style.css
-│ │ │ └── js/
-│ │ │ └── app.js
-│ │ └── templates/ # HTML
-│ │ └── index.html
-│ ├── kafka/ # работа с Kafka
-│ │ ├── consumer.go
-│ │ ├── consumer_test.go
-│ │ └── producer.go
-│ ├── repository/ # работа с PostgreSQL
-│ │ ├── order_repo.go # интерфейс репозитория
-│ │ ├── postgres.go # реализация
-│ │ └── postgres_test.go # тесты (pgxmock)
-│ └── service/ # бизнес-логика
-│ ├── order_service.go
-│ └── order_service_test.go # тесты (моки)
-├── migrations/ # SQL миграции
-│ ├── 001_init_schema.down.sql
-│ └── 001_init_schema.up.sql
-├── docker-compose.yml # инфраструктура
-├── Dockerfile.server # сборка сервиса
-├── Dockerfile.producer # сборка продюсера
-├── go.mod
-├── go.sum
-├── model.json # тестовые данные
-└── README.md
+
+| Путь | Назначение |
+|------|------------|
+| `cmd/producer/` | Тестовый продюсер для Kafka |
+| `cmd/server/` | Основной сервис |
+| `internal/cache/` | Работа с Redis (кэш) |
+| `internal/config/` | Конфигурация |
+| `internal/domain/` | Модели данных |
+| `internal/handler/` | HTTP обработчики (API + веб) |
+| `internal/handler/web/` | Встроенные HTML/CSS/JS |
+| `internal/kafka/` | Consumer/Producer для Kafka |
+| `internal/repository/` | Работа с PostgreSQL |
+| `internal/service/` | Бизнес-логика и валидация |
+| `migrations/` | SQL миграции |
+| `docker-compose.yml` | Инфраструктура (PostgreSQL, Redis, Kafka) |
+| `Dockerfile.*` | Docker-образы |
+| `model.json` | Тестовые данные |
 
 ## Технологии
 
@@ -139,3 +109,44 @@ TODO:
     Переместить интерфейсы
     golint
     Убрать тестовый продюсер из докера
+
+
+
+1 Тудушки лучше исправлять
+TODO: Оптимизировать GetAll in repo Исправить Graceful Shtd Переместить интерфейсы golint Убрать тестовый продюсер из докера
+
+4 Так как параметры задаются через переменные окружения, то неплохо бы приложить файл example.env
+
+5 Сигнатуры функции Load() (*Config, error) не соответствует реальности. Зачем возвращать ошибку, если она всегда nil?
+
+6 Контекст должен инициализироваться в мейн пакете и передаваться дальше, но не задаваться новый в каждой функции, например
+pool, err := pgxpool.New(context.Background(), dsn)
+
+7 Плохой тон возвращать незаврапленные ошибки
+return nil, err
+
+8 Не сравнивай ошибки на равенство, используй errors.Is
+err == pgx.ErrNoRows
+
+9 Необходимо придерживаться одного стиля: либо описывать интерфейс в отдельном файле, либо в основном файле реализации, например
+type OrderServiceInterface interface {
+
+SaveOrder(order *domain.Order) error
+
+}
+
+10 Логировать ошибку при вставку в кеш, как будто бы недостаточно
+if err := s.cache.Set(id, order); err != nil {
+
+//log
+
+fmt.Printf("failed to set cache: %v\n", err)
+
+}
+
+11 Отсутствуют интеграционные тесты
+
+12 Трейсы и метрики должны присутствовать в продакшен-реди коде
+
+13 Наверное все же стоит
+//graceful норм сделать

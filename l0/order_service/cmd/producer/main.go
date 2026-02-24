@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"time"
+
 	"order-service/internal/config"
 	"order-service/internal/domain"
 	"order-service/internal/kafka"
-	"time"
 )
 
 func main() {

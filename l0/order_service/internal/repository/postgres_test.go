@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"order-service/internal/domain"
-
 	"github.com/jackc/pgx/v5"
 	"github.com/pashagolub/pgxmock/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"order-service/internal/domain"
 )
 
 func TestPostgresOrderRepo_Save_SuccessAndIdempotent(t *testing.T) {

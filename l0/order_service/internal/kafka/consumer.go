@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"order-service/internal/config"
-	"order-service/internal/domain"
-	"order-service/internal/service"
 	"os"
 	"time"
 
 	"github.com/segmentio/kafka-go"
+
+	"order-service/internal/config"
+	"order-service/internal/domain"
+	"order-service/internal/service"
 )
 
 type KafkaReader interface {

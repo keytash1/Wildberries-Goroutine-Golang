@@ -2,18 +2,19 @@ package main
 
 import (
 	"log"
-	"order-service/internal/cache"
-	"order-service/internal/config"
-	"order-service/internal/handler"
-	"order-service/internal/kafka"
-	"order-service/internal/repository"
-	"order-service/internal/service"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"order-service/internal/cache"
+	"order-service/internal/config"
+	"order-service/internal/handler"
+	"order-service/internal/kafka"
+	"order-service/internal/repository"
+	"order-service/internal/service"
 )
 
 func main() {
