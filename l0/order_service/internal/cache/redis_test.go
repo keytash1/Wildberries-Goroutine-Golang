@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"strconv"
 	"testing"
 	"time"
@@ -47,6 +48,7 @@ func TestRedisCache_NewRedisCache_InvalidPort(t *testing.T) {
 }
 
 func TestRedisCache_SetAndGet_Success(t *testing.T) {
+	ctx := context.Background()
 	mr, err := miniredis.Run()
 	require.NoError(t, err)
 	defer mr.Close()
@@ -90,10 +92,10 @@ func TestRedisCache_SetAndGet_Success(t *testing.T) {
 		},
 	}
 
-	err = cache.Set(order.OrderUID, order)
+	err = cache.Set(ctx, order.OrderUID, order)
 	assert.NoError(t, err)
 
-	result, err := cache.Get(order.OrderUID)
+	result, err := cache.Get(ctx, order.OrderUID)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, order.OrderUID, result.OrderUID)
@@ -107,6 +109,7 @@ func TestRedisCache_SetAndGet_Success(t *testing.T) {
 }
 
 func TestRedisCache_Get_NotFound(t *testing.T) {
+	ctx := context.Background()
 	mr, err := miniredis.Run()
 	require.NoError(t, err)
 	defer mr.Close()
@@ -124,12 +127,13 @@ func TestRedisCache_Get_NotFound(t *testing.T) {
 	cache, err := NewRedisCache(cfg)
 	require.NoError(t, err)
 
-	result, err := cache.Get("non-existent")
+	result, err := cache.Get(ctx, "non-existent")
 	assert.NoError(t, err)
 	assert.Nil(t, result)
 }
 
 func TestRedisCache_Set_TTL(t *testing.T) {
+	ctx := context.Background()
 	mr, err := miniredis.Run()
 	require.NoError(t, err)
 	defer mr.Close()
@@ -152,17 +156,18 @@ func TestRedisCache_Set_TTL(t *testing.T) {
 		CustomerID: "cust-1",
 	}
 
-	err = cache.Set(order.OrderUID, order)
+	err = cache.Set(ctx, order.OrderUID, order)
 	assert.NoError(t, err)
 
 	mr.FastForward(2 * time.Second)
 
-	result, err := cache.Get(order.OrderUID)
+	result, err := cache.Get(ctx, order.OrderUID)
 	assert.NoError(t, err)
 	assert.Nil(t, result)
 }
 
 func TestRedisCache_Restore_Success(t *testing.T) {
+	ctx := context.Background()
 	mr, err := miniredis.Run()
 	require.NoError(t, err)
 	defer mr.Close()
@@ -196,11 +201,11 @@ func TestRedisCache_Restore_Success(t *testing.T) {
 		},
 	}
 
-	err = cache.Restore(orders)
+	err = cache.Restore(ctx, orders)
 	assert.NoError(t, err)
 
 	for _, expected := range orders {
-		result, err := cache.Get(expected.OrderUID)
+		result, err := cache.Get(ctx, expected.OrderUID)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, expected.OrderUID, result.OrderUID)
@@ -210,6 +215,7 @@ func TestRedisCache_Restore_Success(t *testing.T) {
 }
 
 func TestRedisCache_Restore_WithInvalidOrder(t *testing.T) {
+	ctx := context.Background()
 	mr, err := miniredis.Run()
 	require.NoError(t, err)
 	defer mr.Close()
@@ -237,10 +243,10 @@ func TestRedisCache_Restore_WithInvalidOrder(t *testing.T) {
 		nil,
 	}
 
-	err = cache.Restore(orders)
+	err = cache.Restore(ctx, orders)
 	assert.NoError(t, err)
 
-	result, err := cache.Get("order-1")
+	result, err := cache.Get(ctx, "order-1")
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, "order-1", result.OrderUID)

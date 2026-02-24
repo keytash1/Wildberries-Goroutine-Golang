@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 )
 
 func TestPostgresOrderRepo_Save_SuccessAndIdempotent(t *testing.T) {
+	ctx := context.Background()
 	mock, err := pgxmock.NewPool()
 	require.NoError(t, err)
 	defer mock.Close()
@@ -123,7 +125,7 @@ func TestPostgresOrderRepo_Save_SuccessAndIdempotent(t *testing.T) {
 
 	mock.ExpectCommit()
 
-	err = repo.Save(order)
+	err = repo.Save(ctx, order)
 	require.NoError(t, err)
 	require.NoError(t, mock.ExpectationsWereMet())
 
@@ -175,12 +177,13 @@ func TestPostgresOrderRepo_Save_SuccessAndIdempotent(t *testing.T) {
 
 	mock.ExpectCommit()
 
-	err = repo.Save(order)
+	err = repo.Save(ctx, order)
 	require.NoError(t, err)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestPostgresOrderRepo_Save_BeginError(t *testing.T) {
+	ctx := context.Background()
 	mock, err := pgxmock.NewPool()
 	require.NoError(t, err)
 	defer mock.Close()
@@ -191,13 +194,14 @@ func TestPostgresOrderRepo_Save_BeginError(t *testing.T) {
 
 	order := &domain.Order{OrderUID: "test-error"}
 
-	err = repo.Save(order)
+	err = repo.Save(ctx, order)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to begin transaction")
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestPostgresOrderRepo_GetByID_Success(t *testing.T) {
+	ctx := context.Background()
 	mock, err := pgxmock.NewPool()
 	require.NoError(t, err)
 	defer mock.Close()
@@ -270,7 +274,7 @@ func TestPostgresOrderRepo_GetByID_Success(t *testing.T) {
 		WithArgs("b563feb7b2b84b6test").
 		WillReturnRows(itemsRows)
 
-	order, err := repo.GetByID("b563feb7b2b84b6test")
+	order, err := repo.GetByID(ctx, "b563feb7b2b84b6test")
 	require.NoError(t, err)
 	require.NotNil(t, order)
 
@@ -290,6 +294,7 @@ func TestPostgresOrderRepo_GetByID_Success(t *testing.T) {
 }
 
 func TestPostgresOrderRepo_GetByID_NotFound(t *testing.T) {
+	ctx := context.Background()
 	mock, err := pgxmock.NewPool()
 	require.NoError(t, err)
 	defer mock.Close()
@@ -300,7 +305,7 @@ func TestPostgresOrderRepo_GetByID_NotFound(t *testing.T) {
 		WithArgs("non-existent").
 		WillReturnError(pgx.ErrNoRows)
 
-	order, err := repo.GetByID("non-existent")
+	order, err := repo.GetByID(ctx, "non-existent")
 	require.NoError(t, err)
 	assert.Nil(t, order)
 
@@ -308,6 +313,7 @@ func TestPostgresOrderRepo_GetByID_NotFound(t *testing.T) {
 }
 
 func TestPostgresOrderRepo_GetByID_OrderError(t *testing.T) {
+	ctx := context.Background()
 	mock, err := pgxmock.NewPool()
 	require.NoError(t, err)
 	defer mock.Close()
@@ -318,7 +324,7 @@ func TestPostgresOrderRepo_GetByID_OrderError(t *testing.T) {
 		WithArgs("test-error").
 		WillReturnError(errors.New("connection error"))
 
-	order, err := repo.GetByID("test-error")
+	order, err := repo.GetByID(ctx, "test-error")
 	assert.Error(t, err)
 	assert.Nil(t, order)
 	assert.Contains(t, err.Error(), "failed to get order")
@@ -327,6 +333,7 @@ func TestPostgresOrderRepo_GetByID_OrderError(t *testing.T) {
 }
 
 func TestPostgresOrderRepo_GetAll_Success(t *testing.T) {
+	ctx := context.Background()
 	mock, err := pgxmock.NewPool()
 	require.NoError(t, err)
 	defer mock.Close()
@@ -412,7 +419,7 @@ func TestPostgresOrderRepo_GetAll_Success(t *testing.T) {
 		WithArgs("order-2").
 		WillReturnRows(items2Rows)
 
-	orders, err := repo.GetAll()
+	orders, err := repo.GetAll(ctx)
 	require.NoError(t, err)
 	require.Len(t, orders, 2)
 
@@ -426,6 +433,7 @@ func TestPostgresOrderRepo_GetAll_Success(t *testing.T) {
 }
 
 func TestPostgresOrderRepo_GetAll_Empty(t *testing.T) {
+	ctx := context.Background()
 	mock, err := pgxmock.NewPool()
 	require.NoError(t, err)
 	defer mock.Close()
@@ -437,7 +445,7 @@ func TestPostgresOrderRepo_GetAll_Empty(t *testing.T) {
 	mock.ExpectQuery(`SELECT order_uid FROM orders ORDER BY date_created DESC`).
 		WillReturnRows(idRows)
 
-	orders, err := repo.GetAll()
+	orders, err := repo.GetAll(ctx)
 	require.NoError(t, err)
 	assert.Empty(t, orders)
 
@@ -445,6 +453,7 @@ func TestPostgresOrderRepo_GetAll_Empty(t *testing.T) {
 }
 
 func TestPostgresOrderRepo_Ping_Success(t *testing.T) {
+	ctx := context.Background()
 	mock, err := pgxmock.NewPool()
 	require.NoError(t, err)
 	defer mock.Close()
@@ -453,12 +462,13 @@ func TestPostgresOrderRepo_Ping_Success(t *testing.T) {
 
 	mock.ExpectPing()
 
-	err = repo.Ping()
+	err = repo.Ping(ctx)
 	assert.NoError(t, err)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestPostgresOrderRepo_Ping_Error(t *testing.T) {
+	ctx := context.Background()
 	mock, err := pgxmock.NewPool()
 	require.NoError(t, err)
 	defer mock.Close()
@@ -467,7 +477,7 @@ func TestPostgresOrderRepo_Ping_Error(t *testing.T) {
 
 	mock.ExpectPing().WillReturnError(errors.New("connection error"))
 
-	err = repo.Ping()
+	err = repo.Ping(ctx)
 	assert.Error(t, err)
 	require.NoError(t, mock.ExpectationsWereMet())
 }

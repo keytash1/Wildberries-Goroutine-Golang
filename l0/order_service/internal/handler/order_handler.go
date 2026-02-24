@@ -27,7 +27,7 @@ func (h *OrderHandler) GetOrder(c *gin.Context) {
 		return
 	}
 
-	order, err := h.orderService.GetOrder(id)
+	order, err := h.orderService.GetOrder(c.Request.Context(), id)
 	if err != nil {
 		if errors.Is(err, service.ErrOrderNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "order not found"})

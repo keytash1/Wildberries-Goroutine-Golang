@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -28,9 +29,9 @@ func NewOrderService(repo repository.OrderRepository, cache cache.OrderCache) *O
 	}
 }
 
-func (s *OrderService) GetOrder(id string) (*domain.Order, error) {
+func (s *OrderService) GetOrder(ctx context.Context, id string) (*domain.Order, error) {
 	//try cache
-	order, err := s.cache.Get(id)
+	order, err := s.cache.Get(ctx, id)
 	if err != nil {
 		log.Printf("Cache error for order %s: %v", id, err)
 	} else if order != nil {
@@ -39,7 +40,7 @@ func (s *OrderService) GetOrder(id string) (*domain.Order, error) {
 	}
 
 	//try db
-	order, err = s.repo.GetByID(id)
+	order, err = s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("database error: %w", err)
 	}
@@ -47,7 +48,7 @@ func (s *OrderService) GetOrder(id string) (*domain.Order, error) {
 		return nil, ErrOrderNotFound
 	}
 	//save into cache
-	if err := s.cache.Set(id, order); err != nil {
+	if err := s.cache.Set(ctx, id, order); err != nil {
 		log.Printf("failed to cache order %s after db read: %v", id, err)
 	} else {
 		log.Printf("Order %s cached successfully", order.OrderUID)
@@ -131,10 +132,10 @@ func (s *OrderService) validateOrder(order *domain.Order) error {
 	return nil
 }
 
-func (s *OrderService) saveToCacheWithRetry(id string, order *domain.Order) {
+func (s *OrderService) saveToCacheWithRetry(ctx context.Context, id string, order *domain.Order) {
 	const maxRetries = 3
 	for i := 0; i < maxRetries; i++ {
-		if err := s.cache.Set(id, order); err == nil {
+		if err := s.cache.Set(ctx, id, order); err == nil {
 			log.Printf("Order %s cached successfully after %d attempts", id, i+1)
 			return
 		} else if i < maxRetries-1 {
@@ -148,32 +149,32 @@ func (s *OrderService) saveToCacheWithRetry(id string, order *domain.Order) {
 	}
 }
 
-func (s *OrderService) SaveOrder(order *domain.Order) error {
+func (s *OrderService) SaveOrder(ctx context.Context, order *domain.Order) error {
 	if err := s.validateOrder(order); err != nil {
 		log.Printf("Invalid order %s: %v", order.OrderUID, err)
 		return err
 	}
 
 	//save db
-	if err := s.repo.Save(order); err != nil {
+	if err := s.repo.Save(ctx, order); err != nil {
 		return fmt.Errorf("failed to save to db: %w", err)
 	}
 
 	log.Printf("Order %s saved to database", order.OrderUID)
 
 	//save cache
-	go s.saveToCacheWithRetry(order.OrderUID, order)
+	go s.saveToCacheWithRetry(ctx, order.OrderUID, order)
 
 	return nil
 }
 
-func (s *OrderService) RestoreCache() error {
-	orders, err := s.repo.GetAll()
+func (s *OrderService) RestoreCache(ctx context.Context) error {
+	orders, err := s.repo.GetAll(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get all orders: %w", err)
 	}
 
-	if err := s.cache.Restore(orders); err != nil {
+	if err := s.cache.Restore(ctx, orders); err != nil {
 		//лучше упасть?
 		return fmt.Errorf("failed to restore cache: %w", err)
 	}

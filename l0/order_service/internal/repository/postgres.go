@@ -40,8 +40,7 @@ func NewPostgresOrderRepo(cfg config.DBConfig) (*PostgresOrderRepo, error) {
 	return &PostgresOrderRepo{pool: pool}, nil
 }
 
-func (r *PostgresOrderRepo) Save(order *domain.Order) error {
-	ctx := context.Background()
+func (r *PostgresOrderRepo) Save(ctx context.Context, order *domain.Order) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -120,8 +119,7 @@ func (r *PostgresOrderRepo) Save(order *domain.Order) error {
 	return nil
 }
 
-func (r *PostgresOrderRepo) GetByID(id string) (*domain.Order, error) {
-	ctx := context.Background()
+func (r *PostgresOrderRepo) GetByID(ctx context.Context, id string) (*domain.Order, error) {
 	order := &domain.Order{Items: []domain.Item{}}
 
 	//получаем заказ
@@ -198,8 +196,7 @@ func (r *PostgresOrderRepo) GetByID(id string) (*domain.Order, error) {
 }
 
 // getAll для восстановления кэша
-func (r *PostgresOrderRepo) GetAll() ([]*domain.Order, error) {
-	ctx := context.Background()
+func (r *PostgresOrderRepo) GetAll(ctx context.Context) ([]*domain.Order, error) {
 	//get items
 	rows, err := r.pool.Query(ctx, `
 		SELECT 
@@ -286,8 +283,7 @@ func (r *PostgresOrderRepo) GetAll() ([]*domain.Order, error) {
 	return orders, nil
 }
 
-func (r *PostgresOrderRepo) Ping() error {
-	ctx := context.Background()
+func (r *PostgresOrderRepo) Ping(ctx context.Context) error {
 	if err := r.pool.Ping(ctx); err != nil {
 		return fmt.Errorf("failed to ping database: %w", err)
 	}

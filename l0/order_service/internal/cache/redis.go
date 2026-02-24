@@ -43,9 +43,7 @@ func (c *RedisCache) Close() error {
 	return c.client.Close()
 }
 
-func (c *RedisCache) Set(id string, order *domain.Order) error {
-	ctx := context.Background()
-
+func (c *RedisCache) Set(ctx context.Context, id string, order *domain.Order) error {
 	data, err := json.Marshal(order)
 	if err != nil {
 		return fmt.Errorf("failed to marshal order: %w", err)
@@ -57,9 +55,7 @@ func (c *RedisCache) Set(id string, order *domain.Order) error {
 	return nil
 }
 
-func (c *RedisCache) Get(id string) (*domain.Order, error) {
-	ctx := context.Background()
-
+func (c *RedisCache) Get(ctx context.Context, id string) (*domain.Order, error) {
 	data, err := c.client.Get(ctx, "order:"+id).Bytes()
 	if errors.Is(err, redis.Nil) {
 		//cache miss
@@ -77,8 +73,7 @@ func (c *RedisCache) Get(id string) (*domain.Order, error) {
 	return &order, nil
 }
 
-func (c *RedisCache) Restore(orders []*domain.Order) error {
-	ctx := context.Background()
+func (c *RedisCache) Restore(ctx context.Context, orders []*domain.Order) error {
 	for _, order := range orders {
 		if order == nil {
 			continue

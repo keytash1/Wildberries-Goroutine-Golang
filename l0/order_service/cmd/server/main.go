@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -18,6 +21,8 @@ import (
 )
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	cfg := config.Load()
 
 	repo, err := repository.NewPostgresOrderRepo(cfg.DB)
@@ -36,14 +41,14 @@ func main() {
 
 	orderService := service.NewOrderService(repo, redisCache)
 
-	if err := orderService.RestoreCache(); err != nil {
+	if err := orderService.RestoreCache(ctx); err != nil {
 		log.Println("Cache restore warning:", err)
 	} else {
 		log.Println("Cache restored from database")
 	}
 
 	consumer := kafka.NewConsumer(cfg.Kafka, orderService)
-	go consumer.Start()
+	go consumer.Start(ctx)
 	defer consumer.Stop()
 
 	webHandler, err := handler.NewWebHandler()
@@ -60,17 +65,34 @@ func main() {
 	r.GET("/order/:id", orderHandler.GetOrder)
 	r.GET("/health", orderHandler.HealthCheck)
 
+	srv := &http.Server{
+		Addr:    ":" + cfg.HTTP.Port,
+		Handler: r,
+	}
+
 	go func() {
 		log.Printf("Server started on http://localhost:%s", cfg.HTTP.Port)
-		if err := r.Run(":" + cfg.HTTP.Port); err != nil {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatal("Server failed", err)
 		}
 	}()
-	//graceful норм сделать
+
+	//graceful
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
 	<-quit
-	log.Println("Shutting down...")
+	log.Println("shutting down...")
+	cancel()
+
+	shtdCtx, shtdCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shtdCancel()
+
+	if err := srv.Shutdown(shtdCtx); err != nil {
+		log.Printf("HTTP server shutdown error: %v", err)
+	}
+	//time for consumer
 	time.Sleep(2 * time.Second)
+
 	log.Println("End")
 }

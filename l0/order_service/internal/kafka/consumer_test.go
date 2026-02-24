@@ -37,12 +37,26 @@ type MockOrderService struct {
 	mock.Mock
 }
 
-func (m *MockOrderService) SaveOrder(order *domain.Order) error {
-	args := m.Called(order)
+func (m *MockOrderService) SaveOrder(ctx context.Context, order *domain.Order) error {
+	args := m.Called(ctx, order)
+	return args.Error(0)
+}
+
+func (m *MockOrderService) GetOrder(ctx context.Context, id string) (*domain.Order, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Order), args.Error(1)
+}
+
+func (m *MockOrderService) RestoreCache(ctx context.Context) error {
+	args := m.Called(ctx)
 	return args.Error(0)
 }
 
 func TestConsumer_Start_Stop(t *testing.T) {
+	ctx := context.Background()
 	mockReader := new(MockReader)
 	mockService := new(MockOrderService)
 
@@ -54,7 +68,7 @@ func TestConsumer_Start_Stop(t *testing.T) {
 		stopChan:     make(chan struct{}),
 	}
 
-	go consumer.Start()
+	go consumer.Start(ctx)
 	time.Sleep(10 * time.Millisecond)
 
 	err := consumer.Stop()
@@ -64,6 +78,7 @@ func TestConsumer_Start_Stop(t *testing.T) {
 }
 
 func TestConsumer_processMessage_Success(t *testing.T) {
+	ctx := context.Background()
 	mockService := new(MockOrderService)
 
 	consumer := &Consumer{
@@ -74,15 +89,16 @@ func TestConsumer_processMessage_Success(t *testing.T) {
 	data, _ := json.Marshal(order)
 	msg := kafka.Message{Value: data}
 
-	mockService.On("SaveOrder", order).Return(nil)
+	mockService.On("SaveOrder", mock.Anything, order).Return(nil)
 
-	err := consumer.processMessage(msg)
+	err := consumer.processMessage(ctx, msg)
 
 	assert.NoError(t, err)
 	mockService.AssertExpectations(t)
 }
 
 func TestConsumer_processMessage_UnmarshalError(t *testing.T) {
+	ctx := context.Background()
 	mockService := new(MockOrderService)
 
 	consumer := &Consumer{
@@ -90,14 +106,15 @@ func TestConsumer_processMessage_UnmarshalError(t *testing.T) {
 	}
 
 	msg := kafka.Message{Value: []byte(`{"invalid": json`)}
-	err := consumer.processMessage(msg)
+	err := consumer.processMessage(ctx, msg)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to unmarshal")
-	mockService.AssertNotCalled(t, "SaveOrder")
+	mockService.AssertNotCalled(t, "SaveOrder", mock.Anything, mock.Anything)
 }
 
 func TestConsumer_processMessage_SaveError(t *testing.T) {
+	ctx := context.Background()
 	mockService := new(MockOrderService)
 
 	consumer := &Consumer{
@@ -109,9 +126,9 @@ func TestConsumer_processMessage_SaveError(t *testing.T) {
 	msg := kafka.Message{Value: data}
 
 	saveErr := errors.New("database error")
-	mockService.On("SaveOrder", order).Return(saveErr)
+	mockService.On("SaveOrder", mock.Anything, order).Return(saveErr)
 
-	err := consumer.processMessage(msg)
+	err := consumer.processMessage(ctx, msg)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to save order")

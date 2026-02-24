@@ -1,9 +1,12 @@
 package cache
 
-import "order-service/internal/domain"
+import (
+	"context"
+	"order-service/internal/domain"
+)
 
 type OrderCache interface {
-	Set(id string, order *domain.Order) error
-	Get(id string) (*domain.Order, error)
-	Restore(orders []*domain.Order) error
+	Set(ctx context.Context, id string, order *domain.Order) error
+	Get(ctx context.Context, id string) (*domain.Order, error)
+	Restore(ctx context.Context, orders []*domain.Order) error
 }

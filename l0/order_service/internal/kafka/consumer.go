@@ -40,7 +40,7 @@ func NewConsumer(cfg config.KafkaConfig, orderService *service.OrderService) *Co
 	}
 }
 
-func (c *Consumer) Start() {
+func (c *Consumer) Start(ctx context.Context) {
 	log.Printf("Kafka consumer started [pid=%d]", os.Getpid())
 	for {
 		select {
@@ -48,17 +48,17 @@ func (c *Consumer) Start() {
 			log.Println("Kafka consumer stopped")
 			return
 		default:
-			msg, err := c.reader.FetchMessage(context.Background())
+			msg, err := c.reader.FetchMessage(ctx)
 			if err != nil {
 				//after maxwait
 				log.Printf("Kafka fetch error: %v", err)
 				continue
 			}
-			if err := c.processMessage(msg); err != nil {
+			if err := c.processMessage(ctx, msg); err != nil {
 				log.Printf("Failed to process message: %v", err)
 				continue
 			}
-			if err := c.reader.CommitMessages(context.Background(), msg); err != nil {
+			if err := c.reader.CommitMessages(ctx, msg); err != nil {
 				log.Printf("Failed to commit message: %v", err)
 			}
 			log.Printf("Message recieved")
@@ -67,7 +67,7 @@ func (c *Consumer) Start() {
 }
 
 // обработка полученного сообщения
-func (c *Consumer) processMessage(msg kafka.Message) error {
+func (c *Consumer) processMessage(ctx context.Context, msg kafka.Message) error {
 	var order domain.Order
 	//из []bytes json в struct
 	if err := json.Unmarshal(msg.Value, &order); err != nil {
@@ -78,7 +78,7 @@ func (c *Consumer) processMessage(msg kafka.Message) error {
 
 	//сохраняем в бд и кэш
 	log.Printf("Try to recieve message")
-	if err := c.orderService.SaveOrder(&order); err != nil {
+	if err := c.orderService.SaveOrder(ctx, &order); err != nil {
 		return fmt.Errorf("failed to save order: %w", err)
 	}
 

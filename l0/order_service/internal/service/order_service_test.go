@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -15,21 +16,21 @@ type MockRepo struct {
 	mock.Mock
 }
 
-func (m *MockRepo) Save(order *domain.Order) error {
-	args := m.Called(order)
+func (m *MockRepo) Save(ctx context.Context, order *domain.Order) error {
+	args := m.Called(ctx, order)
 	return args.Error(0)
 }
 
-func (m *MockRepo) GetByID(id string) (*domain.Order, error) {
-	args := m.Called(id)
+func (m *MockRepo) GetByID(ctx context.Context, id string) (*domain.Order, error) {
+	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*domain.Order), args.Error(1)
 }
 
-func (m *MockRepo) GetAll() ([]*domain.Order, error) {
-	args := m.Called()
+func (m *MockRepo) GetAll(ctx context.Context) ([]*domain.Order, error) {
+	args := m.Called(ctx)
 	return args.Get(0).([]*domain.Order), args.Error(1)
 }
 
@@ -37,26 +38,21 @@ type MockCache struct {
 	mock.Mock
 }
 
-func (m *MockCache) Set(id string, order *domain.Order) error {
-	args := m.Called(id, order)
+func (m *MockCache) Set(ctx context.Context, id string, order *domain.Order) error {
+	args := m.Called(ctx, id, order)
 	return args.Error(0)
 }
 
-func (m *MockCache) Get(id string) (*domain.Order, error) {
-	args := m.Called(id)
+func (m *MockCache) Get(ctx context.Context, id string) (*domain.Order, error) {
+	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*domain.Order), args.Error(1)
 }
 
-func (m *MockCache) GetAll() ([]*domain.Order, error) {
-	args := m.Called()
-	return args.Get(0).([]*domain.Order), args.Error(1)
-}
-
-func (m *MockCache) Restore(orders []*domain.Order) error {
-	args := m.Called(orders)
+func (m *MockCache) Restore(ctx context.Context, orders []*domain.Order) error {
+	args := m.Called(ctx, orders)
 	return args.Error(0)
 }
 
@@ -93,6 +89,7 @@ func createValidOrder() *domain.Order {
 }
 
 func TestOrderService_GetOrder_CacheHit(t *testing.T) {
+	ctx := context.Background()
 	mockRepo := new(MockRepo)
 	mockCache := new(MockCache)
 	service := NewOrderService(mockRepo, mockCache)
@@ -102,17 +99,18 @@ func TestOrderService_GetOrder_CacheHit(t *testing.T) {
 		CustomerID: "customer-1",
 	}
 
-	mockCache.On("Get", "test-123").Return(expectedOrder, nil)
+	mockCache.On("Get", mock.Anything, "test-123").Return(expectedOrder, nil)
 
-	result, err := service.GetOrder("test-123")
+	result, err := service.GetOrder(ctx, "test-123")
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedOrder, result)
 	mockCache.AssertExpectations(t)
-	mockRepo.AssertNotCalled(t, "GetByID")
+	mockRepo.AssertNotCalled(t, "GetByID", mock.Anything, mock.Anything)
 }
 
 func TestOrderService_GetOrder_CacheMiss_DBHit(t *testing.T) {
+	ctx := context.Background()
 	mockRepo := new(MockRepo)
 	mockCache := new(MockCache)
 	service := NewOrderService(mockRepo, mockCache)
@@ -122,11 +120,11 @@ func TestOrderService_GetOrder_CacheMiss_DBHit(t *testing.T) {
 		CustomerID: "customer-1",
 	}
 
-	mockCache.On("Get", "test-123").Return(nil, nil)
-	mockRepo.On("GetByID", "test-123").Return(expectedOrder, nil)
-	mockCache.On("Set", "test-123", expectedOrder).Return(nil)
+	mockCache.On("Get", mock.Anything, "test-123").Return(nil, nil)
+	mockRepo.On("GetByID", mock.Anything, "test-123").Return(expectedOrder, nil)
+	mockCache.On("Set", mock.Anything, "test-123", expectedOrder).Return(nil)
 
-	result, err := service.GetOrder("test-123")
+	result, err := service.GetOrder(ctx, "test-123")
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedOrder, result)
@@ -135,6 +133,7 @@ func TestOrderService_GetOrder_CacheMiss_DBHit(t *testing.T) {
 }
 
 func TestOrderService_GetOrder_CacheError(t *testing.T) {
+	ctx := context.Background()
 	mockRepo := new(MockRepo)
 	mockCache := new(MockCache)
 	service := NewOrderService(mockRepo, mockCache)
@@ -144,11 +143,11 @@ func TestOrderService_GetOrder_CacheError(t *testing.T) {
 		CustomerID: "customer-1",
 	}
 
-	mockCache.On("Get", "test-123").Return(nil, errors.New("redis connection error"))
-	mockRepo.On("GetByID", "test-123").Return(expectedOrder, nil)
-	mockCache.On("Set", "test-123", expectedOrder).Return(nil)
+	mockCache.On("Get", mock.Anything, "test-123").Return(nil, errors.New("redis connection error"))
+	mockRepo.On("GetByID", mock.Anything, "test-123").Return(expectedOrder, nil)
+	mockCache.On("Set", mock.Anything, "test-123", expectedOrder).Return(nil)
 
-	result, err := service.GetOrder("test-123")
+	result, err := service.GetOrder(ctx, "test-123")
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedOrder, result)
@@ -157,14 +156,15 @@ func TestOrderService_GetOrder_CacheError(t *testing.T) {
 }
 
 func TestOrderService_GetOrder_NotFound(t *testing.T) {
+	ctx := context.Background()
 	mockRepo := new(MockRepo)
 	mockCache := new(MockCache)
 	service := NewOrderService(mockRepo, mockCache)
 
-	mockCache.On("Get", "test-123").Return(nil, nil)
-	mockRepo.On("GetByID", "test-123").Return(nil, nil)
+	mockCache.On("Get", mock.Anything, "test-123").Return(nil, nil)
+	mockRepo.On("GetByID", mock.Anything, "test-123").Return(nil, nil)
 
-	result, err := service.GetOrder("test-123")
+	result, err := service.GetOrder(ctx, "test-123")
 
 	assert.ErrorIs(t, err, ErrOrderNotFound)
 	assert.Nil(t, result)
@@ -173,16 +173,17 @@ func TestOrderService_GetOrder_NotFound(t *testing.T) {
 }
 
 func TestOrderService_GetOrder_DBError(t *testing.T) {
+	ctx := context.Background()
 	mockRepo := new(MockRepo)
 	mockCache := new(MockCache)
 	service := NewOrderService(mockRepo, mockCache)
 
 	dbErr := errors.New("connection refused")
 
-	mockCache.On("Get", "test-123").Return(nil, nil)
-	mockRepo.On("GetByID", "test-123").Return(nil, dbErr)
+	mockCache.On("Get", mock.Anything, "test-123").Return(nil, nil)
+	mockRepo.On("GetByID", mock.Anything, "test-123").Return(nil, dbErr)
 
-	result, err := service.GetOrder("test-123")
+	result, err := service.GetOrder(ctx, "test-123")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "database error")
@@ -192,6 +193,7 @@ func TestOrderService_GetOrder_DBError(t *testing.T) {
 }
 
 func TestOrderService_GetOrder_CacheSetError(t *testing.T) {
+	ctx := context.Background()
 	mockRepo := new(MockRepo)
 	mockCache := new(MockCache)
 	service := NewOrderService(mockRepo, mockCache)
@@ -201,11 +203,11 @@ func TestOrderService_GetOrder_CacheSetError(t *testing.T) {
 		CustomerID: "customer-1",
 	}
 
-	mockCache.On("Get", "test-123").Return(nil, nil)
-	mockRepo.On("GetByID", "test-123").Return(expectedOrder, nil)
-	mockCache.On("Set", "test-123", expectedOrder).Return(errors.New("redis unavailable"))
+	mockCache.On("Get", mock.Anything, "test-123").Return(nil, nil)
+	mockRepo.On("GetByID", mock.Anything, "test-123").Return(expectedOrder, nil)
+	mockCache.On("Set", mock.Anything, "test-123", expectedOrder).Return(errors.New("redis unavailable"))
 
-	result, err := service.GetOrder("test-123")
+	result, err := service.GetOrder(ctx, "test-123")
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedOrder, result)
@@ -214,16 +216,17 @@ func TestOrderService_GetOrder_CacheSetError(t *testing.T) {
 }
 
 func TestOrderService_SaveOrder_Success(t *testing.T) {
+	ctx := context.Background()
 	mockRepo := new(MockRepo)
 	mockCache := new(MockCache)
 	service := NewOrderService(mockRepo, mockCache)
 
 	order := createValidOrder()
 
-	mockRepo.On("Save", order).Return(nil)
-	mockCache.On("Set", "test-123", order).Return(nil)
+	mockRepo.On("Save", mock.Anything, order).Return(nil)
+	mockCache.On("Set", mock.Anything, "test-123", order).Return(nil)
 
-	err := service.SaveOrder(order)
+	err := service.SaveOrder(ctx, order)
 
 	assert.NoError(t, err)
 	mockRepo.AssertExpectations(t)
@@ -231,18 +234,20 @@ func TestOrderService_SaveOrder_Success(t *testing.T) {
 }
 
 func TestOrderService_SaveOrder_NilOrder(t *testing.T) {
+	ctx := context.Background()
 	mockRepo := new(MockRepo)
 	mockCache := new(MockCache)
 	service := NewOrderService(mockRepo, mockCache)
 
-	err := service.SaveOrder(nil)
+	err := service.SaveOrder(ctx, nil)
 
 	assert.ErrorIs(t, err, ErrInvalidOrder)
-	mockRepo.AssertNotCalled(t, "Save")
-	mockCache.AssertNotCalled(t, "Set")
+	mockRepo.AssertNotCalled(t, "Save", mock.Anything, mock.Anything)
+	mockCache.AssertNotCalled(t, "Set", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestOrderService_SaveOrder_EmptyUID(t *testing.T) {
+	ctx := context.Background()
 	mockRepo := new(MockRepo)
 	mockCache := new(MockCache)
 	service := NewOrderService(mockRepo, mockCache)
@@ -250,15 +255,16 @@ func TestOrderService_SaveOrder_EmptyUID(t *testing.T) {
 	order := createValidOrder()
 	order.OrderUID = ""
 
-	err := service.SaveOrder(order)
+	err := service.SaveOrder(ctx, order)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "missing order_uid")
-	mockRepo.AssertNotCalled(t, "Save")
-	mockCache.AssertNotCalled(t, "Set")
+	mockRepo.AssertNotCalled(t, "Save", mock.Anything, mock.Anything)
+	mockCache.AssertNotCalled(t, "Set", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestOrderService_SaveOrder_DBError(t *testing.T) {
+	ctx := context.Background()
 	mockRepo := new(MockRepo)
 	mockCache := new(MockCache)
 	service := NewOrderService(mockRepo, mockCache)
@@ -266,27 +272,28 @@ func TestOrderService_SaveOrder_DBError(t *testing.T) {
 	order := createValidOrder()
 	dbErr := errors.New("duplicate key")
 
-	mockRepo.On("Save", order).Return(dbErr)
+	mockRepo.On("Save", mock.Anything, order).Return(dbErr)
 
-	err := service.SaveOrder(order)
+	err := service.SaveOrder(ctx, order)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to save to db")
 	mockRepo.AssertExpectations(t)
-	mockCache.AssertNotCalled(t, "Set")
+	mockCache.AssertNotCalled(t, "Set", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestOrderService_SaveOrder_CacheError(t *testing.T) {
+	ctx := context.Background()
 	mockRepo := new(MockRepo)
 	mockCache := new(MockCache)
 	service := NewOrderService(mockRepo, mockCache)
 
 	order := createValidOrder()
 
-	mockRepo.On("Save", order).Return(nil)
-	mockCache.On("Set", "test-123", order).Return(errors.New("redis unavailable"))
+	mockRepo.On("Save", mock.Anything, order).Return(nil)
+	mockCache.On("Set", mock.Anything, "test-123", order).Return(errors.New("redis unavailable"))
 
-	err := service.SaveOrder(order)
+	err := service.SaveOrder(ctx, order)
 
 	assert.NoError(t, err)
 	mockRepo.AssertExpectations(t)
@@ -294,6 +301,7 @@ func TestOrderService_SaveOrder_CacheError(t *testing.T) {
 }
 
 func TestOrderService_RestoreCache_Success(t *testing.T) {
+	ctx := context.Background()
 	mockRepo := new(MockRepo)
 	mockCache := new(MockCache)
 	service := NewOrderService(mockRepo, mockCache)
@@ -303,10 +311,10 @@ func TestOrderService_RestoreCache_Success(t *testing.T) {
 		{OrderUID: "order-2", CustomerID: "cust-2"},
 	}
 
-	mockRepo.On("GetAll").Return(orders, nil)
-	mockCache.On("Restore", orders).Return(nil)
+	mockRepo.On("GetAll", mock.Anything).Return(orders, nil)
+	mockCache.On("Restore", mock.Anything, orders).Return(nil)
 
-	err := service.RestoreCache()
+	err := service.RestoreCache(ctx)
 
 	assert.NoError(t, err)
 	mockRepo.AssertExpectations(t)
@@ -314,23 +322,25 @@ func TestOrderService_RestoreCache_Success(t *testing.T) {
 }
 
 func TestOrderService_RestoreCache_RepoError(t *testing.T) {
+	ctx := context.Background()
 	mockRepo := new(MockRepo)
 	mockCache := new(MockCache)
 	service := NewOrderService(mockRepo, mockCache)
 
 	repoErr := errors.New("database connection failed")
 
-	mockRepo.On("GetAll").Return([]*domain.Order(nil), repoErr)
+	mockRepo.On("GetAll", mock.Anything).Return([]*domain.Order(nil), repoErr)
 
-	err := service.RestoreCache()
+	err := service.RestoreCache(ctx)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to get all orders")
 	mockRepo.AssertExpectations(t)
-	mockCache.AssertNotCalled(t, "Restore")
+	mockCache.AssertNotCalled(t, "Restore", mock.Anything, mock.Anything)
 }
 
 func TestOrderService_RestoreCache_RestoreError(t *testing.T) {
+	ctx := context.Background()
 	mockRepo := new(MockRepo)
 	mockCache := new(MockCache)
 	service := NewOrderService(mockRepo, mockCache)
@@ -341,10 +351,10 @@ func TestOrderService_RestoreCache_RestoreError(t *testing.T) {
 
 	cacheErr := errors.New("redis restore failed")
 
-	mockRepo.On("GetAll").Return(orders, nil)
-	mockCache.On("Restore", orders).Return(cacheErr)
+	mockRepo.On("GetAll", mock.Anything).Return(orders, nil)
+	mockCache.On("Restore", mock.Anything, orders).Return(cacheErr)
 
-	err := service.RestoreCache()
+	err := service.RestoreCache(ctx)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to restore cache")
@@ -477,6 +487,7 @@ func TestOrderService_SaveOrder_Validation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
 			mockRepo := new(MockRepo)
 			mockCache := new(MockCache)
 			service := NewOrderService(mockRepo, mockCache)
@@ -522,17 +533,17 @@ func TestOrderService_SaveOrder_Validation(t *testing.T) {
 			}
 
 			if !tt.wantErr && order != nil {
-				mockRepo.On("Save", order).Return(nil).Once()
-				mockCache.On("Set", order.OrderUID, order).Return(nil).Once()
+				mockRepo.On("Save", mock.Anything, order).Return(nil).Once()
+				mockCache.On("Set", mock.Anything, order.OrderUID, order).Return(nil).Once()
 			}
 
-			err := service.SaveOrder(order)
+			err := service.SaveOrder(ctx, order)
 
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.ErrorIs(t, err, ErrInvalidOrder)
-				mockRepo.AssertNotCalled(t, "Save")
-				mockCache.AssertNotCalled(t, "Set")
+				mockRepo.AssertNotCalled(t, "Save", mock.Anything, mock.Anything)
+				mockCache.AssertNotCalled(t, "Set", mock.Anything, mock.Anything, mock.Anything)
 			} else {
 				assert.NoError(t, err)
 				mockRepo.AssertExpectations(t)
