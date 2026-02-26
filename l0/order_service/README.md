@@ -118,3 +118,12 @@ cp .env.example .env
 1 Отсутствуют интеграционные тесты
 2 Трейсы и метрики должны присутствовать в продакшен-реди коде
 об изменениях в ридми тесты мейк
+
+make
+trace
+metrics
+integrtests
+ivalid producer
+dlq cachelogs
+dockertestconteainer
+linter vscode

@@ -11,6 +11,7 @@ import (
 
 	"order-service/internal/config"
 	"order-service/internal/domain"
+	"order-service/internal/telemetry"
 )
 
 type RedisCache struct {
@@ -58,12 +59,15 @@ func (c *RedisCache) Set(ctx context.Context, id string, order *domain.Order) er
 func (c *RedisCache) Get(ctx context.Context, id string) (*domain.Order, error) {
 	data, err := c.client.Get(ctx, "order:"+id).Bytes()
 	if errors.Is(err, redis.Nil) {
+		telemetry.RecordCacheMetrics(ctx, false)
 		//cache miss
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get from redis: %w", err)
 	}
+
+	telemetry.RecordCacheMetrics(ctx, true)
 
 	var order domain.Order
 	if err := json.Unmarshal(data, &order); err != nil {

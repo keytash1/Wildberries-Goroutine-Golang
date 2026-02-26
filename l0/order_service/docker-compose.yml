@@ -122,6 +122,25 @@ services:
         condition: service_healthy
     networks:
       - order-network
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: order-jaeger
+    ports:
+      - "16686:16686" #ui
+      - "14268:14268" #http
+    networks:
+      - order-network
+    restart: unless-stopped
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: order-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+          - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - order-network
+    restart: unless-stopped
 volumes:
   postgres_data:
   redis_data:

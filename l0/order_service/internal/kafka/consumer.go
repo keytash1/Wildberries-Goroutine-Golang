@@ -13,6 +13,7 @@ import (
 	"order-service/internal/config"
 	"order-service/internal/domain"
 	"order-service/internal/service"
+	"order-service/internal/telemetry"
 )
 
 // cache like repo, kafkaCons like handler
@@ -71,6 +72,7 @@ func (c *Consumer) processMessage(ctx context.Context, msg kafka.Message) error 
 	var order domain.Order
 	//из []bytes json в struct
 	if err := json.Unmarshal(msg.Value, &order); err != nil {
+		telemetry.RecordKafkaMetrics(ctx, false)
 		return fmt.Errorf("failed to unmarshal: %w", err)
 	}
 
@@ -79,10 +81,13 @@ func (c *Consumer) processMessage(ctx context.Context, msg kafka.Message) error 
 	//сохраняем в бд и кэш
 	log.Printf("Try to recieve message")
 	if err := c.orderService.SaveOrder(ctx, &order); err != nil {
+		telemetry.RecordKafkaMetrics(ctx, false)
 		return fmt.Errorf("failed to save order: %w", err)
 	}
 
 	log.Printf("Order saved: %s", order.OrderUID)
+
+	telemetry.RecordKafkaMetrics(ctx, true)
 	return nil
 }
 
