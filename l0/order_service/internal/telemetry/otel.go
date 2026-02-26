@@ -50,7 +50,7 @@ func InitOTel(serviceName string) func() {
 	// traces(jaeger)
 	// exporter
 	traceExporter, err := jaeger.New(jaeger.WithCollectorEndpoint(
-		jaeger.WithEndpoint("http://localhost:14268/api/traces"),
+		jaeger.WithEndpoint("http://jaeger:14268/api/traces"),
 	))
 	if err != nil {
 		// сервис работает без трейсов, не return тк еще метрики

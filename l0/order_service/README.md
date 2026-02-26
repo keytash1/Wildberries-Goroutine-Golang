@@ -127,3 +127,4 @@ ivalid producer
 dlq cachelogs
 dockertestconteainer
 linter vscode
+golangci-lint run

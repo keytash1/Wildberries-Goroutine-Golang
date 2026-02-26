@@ -9,12 +9,17 @@ import (
 	"time"
 
 	"github.com/segmentio/kafka-go"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 
 	"order-service/internal/config"
 	"order-service/internal/domain"
 	"order-service/internal/service"
 	"order-service/internal/telemetry"
 )
+
+var consumer_tracer = otel.Tracer("kafka-consumer")
 
 // cache like repo, kafkaCons like handler
 type Consumer struct {
@@ -69,22 +74,29 @@ func (c *Consumer) Start(ctx context.Context) {
 
 // обработка полученного сообщения
 func (c *Consumer) processMessage(ctx context.Context, msg kafka.Message) error {
+	ctx, span := consumer_tracer.Start(ctx, "Consumer.processMessage")
+	defer span.End()
+
 	var order domain.Order
 	//из []bytes json в struct
 	if err := json.Unmarshal(msg.Value, &order); err != nil {
+		span.RecordError(err)
 		telemetry.RecordKafkaMetrics(ctx, false)
 		return fmt.Errorf("failed to unmarshal: %w", err)
 	}
 
+	span.SetAttributes(attribute.String("order.id", order.OrderUID))
 	log.Printf("Received order: %s", order.OrderUID)
 
 	//сохраняем в бд и кэш
 	log.Printf("Try to recieve message")
 	if err := c.orderService.SaveOrder(ctx, &order); err != nil {
+		span.RecordError(err)
 		telemetry.RecordKafkaMetrics(ctx, false)
 		return fmt.Errorf("failed to save order: %w", err)
 	}
 
+	span.SetStatus(codes.Ok, "message processed successfully")
 	log.Printf("Order saved: %s", order.OrderUID)
 
 	telemetry.RecordKafkaMetrics(ctx, true)

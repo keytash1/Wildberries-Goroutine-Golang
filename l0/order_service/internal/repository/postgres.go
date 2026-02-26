@@ -10,11 +10,15 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 
 	"order-service/internal/config"
 	"order-service/internal/domain"
 	"order-service/internal/telemetry"
 )
+
+var repo_tracer = otel.Tracer("repository")
 
 type PgxPool interface {
 	Begin(ctx context.Context) (pgx.Tx, error)
@@ -42,8 +46,19 @@ func NewPostgresOrderRepo(cfg config.DBConfig) (*PostgresOrderRepo, error) {
 }
 
 func (r *PostgresOrderRepo) Save(ctx context.Context, order *domain.Order) error {
+	ctx, span := repo_tracer.Start(ctx, "PostgresOrderRepo.Save")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("db.operation", "save"),
+		attribute.String("db.table", "orders"),
+		attribute.String("order.id", order.OrderUID),
+	)
+
 	start := time.Now()
-	defer telemetry.RecordDBMetrics(ctx, "save", "orders", time.Since(start))
+	defer func() {
+		telemetry.RecordDBMetrics(ctx, "save", "orders", time.Since(start))
+	}()
 
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
@@ -124,8 +139,20 @@ func (r *PostgresOrderRepo) Save(ctx context.Context, order *domain.Order) error
 }
 
 func (r *PostgresOrderRepo) GetByID(ctx context.Context, id string) (*domain.Order, error) {
+	ctx, span := repo_tracer.Start(ctx, "PostgresOrderRepo.GetByID")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("db.operation", "get_by_id"),
+		attribute.String("db.table", "orders"),
+		attribute.String("order.id", id),
+	)
+
 	start := time.Now()
-	defer telemetry.RecordDBMetrics(ctx, "get_by_id", "orders", time.Since(start))
+	defer func() {
+		telemetry.RecordDBMetrics(ctx, "get_by_id", "orders", time.Since(start))
+	}()
+
 	order := &domain.Order{Items: []domain.Item{}}
 
 	//получаем заказ
@@ -204,7 +231,10 @@ func (r *PostgresOrderRepo) GetByID(ctx context.Context, id string) (*domain.Ord
 // getAll для восстановления кэша
 func (r *PostgresOrderRepo) GetAll(ctx context.Context) ([]*domain.Order, error) {
 	start := time.Now()
-	defer telemetry.RecordDBMetrics(ctx, "get_all", "orders", time.Since(start))
+	defer func() {
+		telemetry.RecordDBMetrics(ctx, "get_all", "orders", time.Since(start))
+	}()
+
 	//get items
 	rows, err := r.pool.Query(ctx, `
 		SELECT 

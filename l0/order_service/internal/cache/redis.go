@@ -8,11 +8,15 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 
 	"order-service/internal/config"
 	"order-service/internal/domain"
 	"order-service/internal/telemetry"
 )
+
+var cache_tracer = otel.Tracer("cache")
 
 type RedisCache struct {
 	client *redis.Client
@@ -57,8 +61,14 @@ func (c *RedisCache) Set(ctx context.Context, id string, order *domain.Order) er
 }
 
 func (c *RedisCache) Get(ctx context.Context, id string) (*domain.Order, error) {
+	ctx, span := cache_tracer.Start(ctx, "RedisCache.Get")
+	defer span.End()
+
+	span.SetAttributes(attribute.String("cache.key", id))
+
 	data, err := c.client.Get(ctx, "order:"+id).Bytes()
 	if errors.Is(err, redis.Nil) {
+		span.SetAttributes(attribute.Bool("cache.hit", false))
 		telemetry.RecordCacheMetrics(ctx, false)
 		//cache miss
 		return nil, nil
@@ -67,6 +77,7 @@ func (c *RedisCache) Get(ctx context.Context, id string) (*domain.Order, error) 
 		return nil, fmt.Errorf("failed to get from redis: %w", err)
 	}
 
+	span.SetAttributes(attribute.Bool("cache.hit", true))
 	telemetry.RecordCacheMetrics(ctx, true)
 
 	var order domain.Order

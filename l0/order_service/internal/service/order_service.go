@@ -7,6 +7,9 @@ import (
 	"log"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+
 	"order-service/internal/cache"
 	"order-service/internal/domain"
 	"order-service/internal/repository"
@@ -16,6 +19,8 @@ var (
 	ErrOrderNotFound = errors.New("order not found")
 	ErrInvalidOrder  = errors.New("invalid order data")
 )
+
+var tracer = otel.Tracer("order-service")
 
 type OrderService struct {
 	repo  repository.OrderRepository
@@ -30,6 +35,10 @@ func NewOrderService(repo repository.OrderRepository, cache cache.OrderCache) *O
 }
 
 func (s *OrderService) GetOrder(ctx context.Context, id string) (*domain.Order, error) {
+	ctx, span := tracer.Start(ctx, "OrderService.GetOrder")
+	defer span.End()
+	span.SetAttributes(attribute.String("order.id", id))
+
 	//try cache
 	order, err := s.cache.Get(ctx, id)
 	if err != nil {
@@ -47,6 +56,7 @@ func (s *OrderService) GetOrder(ctx context.Context, id string) (*domain.Order, 
 	if order == nil {
 		return nil, ErrOrderNotFound
 	}
+
 	//save into cache
 	if err := s.cache.Set(ctx, id, order); err != nil {
 		log.Printf("failed to cache order %s after db read: %v", id, err)
