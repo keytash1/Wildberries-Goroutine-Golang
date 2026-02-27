@@ -54,6 +54,6 @@ CREATE TABLE IF NOT EXISTS items (
     UNIQUE(order_uid, chrt_id, nm_id) 
 );
 
-CREATE INDEX idx_items_order_uid ON items(order_uid);
-CREATE INDEX idx_orders_customer_id ON orders(customer_id);
-CREATE INDEX idx_orders_date_created ON orders(date_created);
+CREATE INDEX IF NOT EXISTS idx_items_order_uid ON items(order_uid);
+CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON orders(customer_id);
+CREATE INDEX IF NOT EXISTS idx_orders_date_created ON orders(date_created);

@@ -33,11 +33,11 @@ type PostgresOrderRepo struct {
 	pool PgxPool
 }
 
-func NewPostgresOrderRepo(cfg config.DBConfig) (*PostgresOrderRepo, error) {
+func NewPostgresOrderRepo(ctx context.Context, cfg config.DBConfig) (*PostgresOrderRepo, error) {
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
 		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name)
 
-	pool, err := pgxpool.New(context.Background(), dsn)
+	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create pool: %w", err)
 	}

@@ -53,9 +53,16 @@ func (c *Consumer) Start(ctx context.Context) {
 		case <-c.stopChan:
 			log.Println("Kafka consumer stopped")
 			return
+		case <-ctx.Done():
+			log.Println("Kafka consumer stopping due to context cancel")
+			c.reader.Close()
+			return
 		default:
 			msg, err := c.reader.FetchMessage(ctx)
 			if err != nil {
+				if ctx.Err() != nil {
+					continue
+				}
 				//after maxwait
 				log.Printf("Kafka fetch error: %v", err)
 				continue
