@@ -29,13 +29,24 @@ func main() {
 	defer producer.Close()
 	log.Println(cfg.Kafka.Brokers, cfg.Kafka.Topic)
 
-	//сначала анмаршал потому опять маршал?
+	// valid
 	log.Printf("Sending order: %s", order.OrderUID)
 	if err := producer.SendOrder(&order); err != nil {
 		log.Fatal("Failed to send:", err)
 	}
-	log.Println("Order sent")
+	log.Println("Valid order sent")
 
+	// invalid empty uid
+	invalidOrder := order
+	invalidOrder.OrderUID = ""
+	log.Printf("Sending invalid order (empty UID)")
+	if err := producer.SendOrder(&invalidOrder); err != nil {
+		log.Printf("Expected error for invalid order: %v", err)
+	} else {
+		log.Printf("Unexpected success for invalid order")
+	}
+
+	//more valid tests
 	testOrders := []string{"test-order-1", "test-order-2", "test-order-3"}
 
 	for _, id := range testOrders {

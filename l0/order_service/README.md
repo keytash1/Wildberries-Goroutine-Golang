@@ -3,10 +3,11 @@
 Микросервис для работы с заказами. Получает данные из Kafka, сохраняет в PostgreSQL, кэширует в Redis, отдает JSON по HTTP запросу.
 
 # 1. Запустить инфраструктуру
-docker-compose up --build
+make build
+make up
 
 # 2. Отправить тестовые заказы
-docker-compose up producer-test
+make produce
 
 ID созданного заказа можно найти в logs
 
@@ -20,7 +21,7 @@ http://localhost:8081
 | GET | `/health` | Проверка здоровья |
 
 # 4. Запустить юнит-тесты
-go test -v ./...
+make test
 
 ### Компоненты
 - **HTTP Server** - принимает запросы от клиентов (`/order/:id`, `/`, `/health`)
@@ -31,7 +32,8 @@ go test -v ./...
 - **PostgreSQL** - основное хранилище (таблицы: orders, delivery, payment, items)
 - **Redis** - кэш для быстрого доступа (TTL 24 часа)
 - **Kafka** - очередь сообщений (KRaft mode)
-
+- **Jaeger** - сбор и визуализация трейсов
+- **Prometheus** - сбор и хранение метрик
 
 ## Структура проекта
 
@@ -51,6 +53,8 @@ go test -v ./...
 | `docker-compose.yml` | Инфраструктура (PostgreSQL, Redis, Kafka) |
 | `Dockerfile.*` | Docker-образы |
 | `model.json` | Тестовые данные |
+| `internal/telemetry/` | OpenTelemetry (метрики + трейсы) |
+| `prometheus.yml` | Конфигурация Prometheus |
 
 ## Технологии
 
@@ -66,6 +70,9 @@ go test -v ./...
 - **testify** - тестирование (assert, mock)
 - **pgxmock** - моки для БД
 - **miniredis** - моки для Redis
+- **OpenTelemetry** - метрики и трейсы
+- **Prometheus** - хранение метрик
+- **Jaeger** - визуализация трейсов
 
 
 ## Механизмы работы
@@ -103,28 +110,74 @@ ON CONFLICT DO NOTHING для идемпотентности
 | **service** | `GetOrder` (cache hit/miss), `SaveOrder` (валидация), `RestoreCache` | `testify/mock` |
 | **kafka** | `processMessage` (успех, ошибки), `Start`/`Stop` | `testify/mock` |
 
+## Observability
+
+### Метрики (Prometheus)
+
+Метрики доступны в Prometheus UI: `http://localhost:9090`
+
+Также доступны по адресу: `http://localhost:8081/metrics`
+
+**Основные метрики:**
+
+| Метрика | Описание |
+|---------|----------|
+| `http_server_request_duration_seconds_count` | Количество HTTP запросов |
+| `http_server_request_duration_seconds_sum` | Суммарное время ответов |
+| `db_operations_total` | Операции с БД |
+| `db_operation_duration_seconds_sum` | Суммарное время операций БД |
+| `cache_hits_total` | Попадания в кэш |
+| `cache_misses_total` | Промахи кэша |
+| `kafka_messages_total` | Сообщения Kafka |
+| `kafka_errors_total` | Ошибки Kafka |
+
+### Трейсы (Jaeger)
+
+Трейсы доступны в Jaeger UI: `http://localhost:16686`
+
+**Основные спаны:**
+
+| Компонент | Операции |
+|-----------|----------|
+| **HTTP** | `GET /order/:id` |
+| **Service** | `OrderService.GetOrder`, `OrderService.SaveOrder` |
+| **Repository** | `PostgresOrderRepo.GetByID`, `PostgresOrderRepo.Save` |
+| **Cache** | `RedisCache.Get`, `RedisCache.Set` |
+| **Kafka** | `Consumer.processMessage` |
+
+**Пример структуры трейса:**
+```
+GET /order/:id
+└── OrderService.GetOrder
+     ├── RedisCache.Get (hit/miss)
+     └── PostgresOrderRepo.GetByID
+
+Consumer.processMessage
+└── OrderService.SaveOrder
+     ├── PostgresOrderRepo.Save
+     └── RedisCache.Set
+```
+
+### Логи
+
+Логи содержат ID заказа и контекст операций для удобной отладки.
+
+make logs
+
 ## Переменные окружения
 
 Скопируйте файл `.env.example` в `.env` и отредактируйте при необходимости:
 ```bash
 cp .env.example .env
 ```
-Файл .env находится в gitignore:
-```gitignore
-# Environment variables
-.env
-```
+Файл .env находится в gitignore
 
-1 Отсутствуют интеграционные тесты
-2 Трейсы и метрики должны присутствовать в продакшен-реди коде
-об изменениях в ридми тесты мейк
+# Запуск линтера
+make lint
+
+# Остальные make команды 
+make help
 
 make
-trace
-metrics
 integrtests
-ivalid producer
 dlq cachelogs
-dockertestconteainer
-linter vscode
-golangci-lint run

@@ -160,7 +160,17 @@ func (s *OrderService) saveToCacheWithRetry(ctx context.Context, id string, orde
 }
 
 func (s *OrderService) SaveOrder(ctx context.Context, order *domain.Order) error {
+	ctx, span := tracer.Start(ctx, "OrderService.SaveOrder")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("order.id", order.OrderUID),
+		attribute.Int("items.count", len(order.Items)),
+	)
+
 	if err := s.validateOrder(order); err != nil {
+		span.RecordError(err)
+		span.SetAttributes(attribute.String("error.type", "validation"))
 		log.Printf("Invalid order %s: %v", order.OrderUID, err)
 		return err
 	}
