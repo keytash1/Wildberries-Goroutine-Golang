@@ -5,7 +5,7 @@ build:
 
 up:
 	docker-compose up -d
-	@echo "✅ Services started"
+	@echo "Services started"
 	@echo "   Service: http://localhost:8081"
 	@echo "   Prometheus: http://localhost:9090"
 	@echo "   Jaeger: http://localhost:16686"

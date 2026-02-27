@@ -178,6 +178,5 @@ make lint
 # Остальные make команды 
 make help
 
-make
 integrtests
 dlq cachelogs
