@@ -41,9 +41,9 @@ func main() {
 	invalidOrder.OrderUID = ""
 	log.Printf("Sending invalid order (empty UID)")
 	if err := producer.SendOrder(&invalidOrder); err != nil {
-		log.Printf("Expected error for invalid order: %v", err)
+		log.Printf("Failed to send invalid order: %v", err)
 	} else {
-		log.Printf("Unexpected success for invalid order")
+		log.Printf("Invalid order sent to Kafka")
 	}
 
 	//more valid tests
