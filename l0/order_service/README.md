@@ -88,6 +88,7 @@ make test-integration
 | `model.json` | Тестовые данные |
 | `internal/telemetry/` | OpenTelemetry (метрики + трейсы) |
 | `prometheus.yml` | Конфигурация Prometheus |
+| `test/integration` | Интеграционные тесты |
 
 ## Технологии
 
@@ -202,4 +203,5 @@ make lint
 # Остальные make команды 
 make help
 
-dlq cachelogs
+TODO:
+     DLQ

@@ -61,12 +61,16 @@ func (c *Consumer) Start(ctx context.Context) {
 			msg, err := c.reader.FetchMessage(ctx)
 			if err != nil {
 				if ctx.Err() != nil {
+					log.Printf("Context error: %v", ctx.Err())
 					continue
 				}
 				//after maxwait
 				log.Printf("Kafka fetch error: %v", err)
 				continue
 			}
+
+			log.Printf("Got message from Kafka")
+
 			if err := c.processMessage(ctx, msg); err != nil {
 				log.Printf("Failed to process message: %v", err)
 				continue
