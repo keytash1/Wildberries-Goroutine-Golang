@@ -81,7 +81,6 @@ func (r *PostgresOrderRepo) Save(ctx context.Context, order *domain.Order) error
 	if err != nil {
 		return fmt.Errorf("failed to save order: %w", err)
 	}
-	log.Println("order saved to db")
 
 	//сохранили доставку
 	_, err = tx.Exec(ctx, `
@@ -97,7 +96,6 @@ func (r *PostgresOrderRepo) Save(ctx context.Context, order *domain.Order) error
 	if err != nil {
 		return fmt.Errorf("failed to save delivery: %w", err)
 	}
-	log.Println("delivery saved to db")
 
 	//сохраняем платеж
 	_, err = tx.Exec(ctx, `
@@ -115,7 +113,6 @@ func (r *PostgresOrderRepo) Save(ctx context.Context, order *domain.Order) error
 	if err != nil {
 		return fmt.Errorf("failed to save payment: %w", err)
 	}
-	log.Println("payment saved to db")
 
 	//добавляем новые товары
 	for i, item := range order.Items {
@@ -134,8 +131,6 @@ func (r *PostgresOrderRepo) Save(ctx context.Context, order *domain.Order) error
 			return fmt.Errorf("failed to save item %d:%w", i, err)
 		}
 	}
-	log.Println("items saved to db")
-
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
