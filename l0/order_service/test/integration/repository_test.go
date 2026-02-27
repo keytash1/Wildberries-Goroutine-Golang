@@ -1,14 +1,15 @@
 package integration
 
 import (
-	"order-service/internal/config"
-	"order-service/internal/domain"
-	"order-service/internal/repository"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"order-service/internal/config"
+	"order-service/internal/domain"
+	"order-service/internal/repository"
 )
 
 func TestPostgresRepo_ReadlDB_SaveAndGet(t *testing.T) {

@@ -35,6 +35,39 @@ make test
 - **Jaeger** - сбор и визуализация трейсов
 - **Prometheus** - сбор и хранение метрик
 
+## Юнит-тесты
+
+| Пакет | Тесты | Инструменты |
+|-------|-------|-------------|
+| **repository** | `Save`, `GetByID`, `GetAll`, `Ping`, обработка ошибок | `pgxmock` |
+| **cache** | `Set`, `Get`, `Restore`, TTL, ошибки подключения | `miniredis` |
+| **service** | `GetOrder` (cache hit/miss), `SaveOrder` (валидация), `RestoreCache` | `testify/mock` |
+| **kafka** | `processMessage` (успех, ошибки), `Start`/`Stop` | `testify/mock` |
+
+# 5. Запустить интеграционные тесты
+make test-integration
+
+Интеграционные тесты проверяют работу сервиса с реальными зависимостями:
+- PostgreSQL (порт 5433)
+- Redis (порт 6380)
+- Kafka (порт 9093)
+
+Тесты автоматически:
+1. Поднимают тестовые контейнеры через docker-compose
+2. Применяют миграции
+3. Запускают тесты
+4. Останавливают и очищают контейнеры
+
+## Интеграционные тесты
+
+| Файл | Что тестирует |
+|------|---------------|
+| `api_test.go` | HTTP handlers: получение существующего заказа (200) и обработка несуществующего (404) с реальной БД и кэшем |
+| `repository_test.go` | PostgreSQL: сохранение заказа и получение по ID |
+| `service_test.go` | Бизнес-логика: сохранение заказа через сервис, получение с проверкой кэширования в Redis |
+| `kafka_test.go` | Kafka consumer: получение и обработка валидных сообщений, игнорирование невалидных JSON |
+| `main_test.go` | Управление тестовой инфраструктурой: запуск контейнеров, миграции, очистка данных между тестами |
+
 ## Структура проекта
 
 | Путь | Назначение |
@@ -100,15 +133,6 @@ ON CONFLICT DO NOTHING для идемпотентности
 При получении сначала проверяется кэш (Get)
 
 При старте сервиса кэш восстанавливается из БД (RestoreCache)
-
-## Что тестируется
-
-| Пакет | Тесты | Инструменты |
-|-------|-------|-------------|
-| **repository** | `Save`, `GetByID`, `GetAll`, `Ping`, обработка ошибок | `pgxmock` |
-| **cache** | `Set`, `Get`, `Restore`, TTL, ошибки подключения | `miniredis` |
-| **service** | `GetOrder` (cache hit/miss), `SaveOrder` (валидация), `RestoreCache` | `testify/mock` |
-| **kafka** | `processMessage` (успех, ошибки), `Start`/`Stop` | `testify/mock` |
 
 ## Observability
 
@@ -178,5 +202,4 @@ make lint
 # Остальные make команды 
 make help
 
-integrtests
 dlq cachelogs

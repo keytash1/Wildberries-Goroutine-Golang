@@ -1,16 +1,17 @@
 package integration
 
 import (
-	"order-service/internal/cache"
-	"order-service/internal/config"
-	"order-service/internal/domain"
-	"order-service/internal/repository"
-	"order-service/internal/service"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"order-service/internal/cache"
+	"order-service/internal/config"
+	"order-service/internal/domain"
+	"order-service/internal/repository"
+	"order-service/internal/service"
 )
 
 func TestService_RealDBAndRedis_SaveAndGet(t *testing.T) {
