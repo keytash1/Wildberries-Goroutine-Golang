@@ -4,7 +4,7 @@ build:
 	docker-compose build
 
 up:
-	docker-compose up -d
+	docker-compose up
 	@echo "Services started"
 	@echo "   Service: http://localhost:8081"
 	@echo "   Prometheus: http://localhost:9090"
